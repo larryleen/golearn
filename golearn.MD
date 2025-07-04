@@ -10,15 +10,22 @@ go代码源码
 go指令源码
 ### 环境配置
 vim ~/.bashrc
+
 export GOROOT=/usr/local/go
+
 export GOPATH=/Users/wps/go
-export PATH=$PATH:$GOROOT/bin:$GOPATH/bin
+
+export PATH=$PATH:\$GOROOT/bin:$GOPATH/bin
+
 source ~/.bashrc
+
 ### 验证
 go version
 ### 验证环境变量
 echo $GOROOT
+
 echo $GOPATH
+
 echo $PATH
 
 ### 项目构建
