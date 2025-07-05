@@ -15,7 +15,7 @@ export GOROOT=/usr/local/go
 
 export GOPATH=/Users/wps/go
 
-export PATH=$PATH:\$GOROOT/bin:$GOPATH/bin
+export PATH=\$PATH:\$GOROOT/bin:$GOPATH/bin
 
 source ~/.bashrc
 
@@ -38,11 +38,20 @@ echo $PATH
 package main //程序包名
 import (
     "fmt"
+    "time"
+    //导入多个包
 )
 //main函数
-func main() {
-    fmt.Println("Hello World!")
+func main() { //方括号一定在同一行
+    fmt.Println("Hello World!") //外部可用函数首字母一定大写
+
+    time.Sleep(1 * time.Second)
 }
+
+/*
+这是注释
+*/
+
 ```
 
 ### golang编译
@@ -56,3 +65,33 @@ golang build 项目名.go
 go run 项目名.go
 ```
  
+### 四种变量声明方式
+
+```
+//方法一：声明一个变量，默认为0
+var a int
+
+//方法二：初始化一个值
+var b int = 100
+
+//方法三：自动匹配
+var c = 100
+
+//方法四：自动推导
+d := 100
+
+//打印类型
+fmt.Println("%T", d)
+```
+
+### const与iota
+```
+const (
+    a = iota    //0
+    b           //1
+    c           //2
+    d = iota * 2 + 1    //3 * 2 + 1 = 7
+)
+```
+
+### 
