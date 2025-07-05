@@ -261,6 +261,141 @@ func printA(a [5]int) {
 }
 ```
 2. 定义slice
+```
+//方法一：初始化
+a := []int{1, 2, 3, 4}
+
+//方法二：申请
+var a []int
+a = make([]int, 4)
+
+//方法三：声明并申请
+var a []int= make([]int, 4)
+
+//方法四：方法三简写
+a := make([]int, 4)
+```
+
+3. slice切片与截取
+```
+//申请时可传参：len,cap
+// len:3 cap:5
+var a = make([]int, 3,5)
+fmt.Println("len = %d, cap = %d\n", len(a), cap(a))
+
+//追加（如果容量已满，则扩容加cap）
+a = append(a, 10)
+
+//截取
+a1 := a[0:2]
+a1 := a[:2]
+a1 := a[0:]
+//类似Python方法
+
+//拷贝
+b := make([]int, 4)
+copy(b, a)
+```
+
+### map
+1. map的三种定义方式
+```
+//方法一：声明并申请
+var Mymap1 map[string]string
+Mymap1 = make(map[string]string, 10)
+
+//方法二：直接申请
+Mymap2 := make(map[string]string, 10)
+
+//方法三：初始化
+Mymap3 := make(map[int]string) {
+    1: "java"
+    2: "golang"
+}
+
+//赋值
+Mymap1["YunNan"] = "KunMing"
+
+//判空
+if Mymap1 == nil {
+    fmt.Println("空map")
+}
+
+//遍历
+for key, value := range Mymap1 {
+    fmt.Println("key = %s, value = %s, map = %v", key, value, Mymap1)
+}
+
+//删除
+delete(Mymap1, "YunNan")
+
+//map被调用传参时是直接指针传递
+```
+
+### struct
+1. 定义struct
+```
+//类首字母大写代表其他包可以访问
+type Student struct {
+    name string
+    number int
+    age int
+}
+
+//定义方法
+func (s *Student, str string) ChangeName() {
+    s.name = str
+}
 
 
+var student1 Student
+student1.name = "LiHua"
+student1.age = 20
 
+ChangeName(&student1, "LiMing")
+```
+
+### 面向对象的类与封装
+不分公有私有等继承
+```
+func (this *Student) Setage() {
+    this.age = 18
+}
+
+stu2 := Student{
+    name: "LiMing",
+    number: 1001,
+    age: 20,
+}
+
+stu2.Setage()
+```
+
+### 继承
+```
+type Bachelor Struct {
+    Student
+    sex string
+
+}
+
+func SetSex(this *Bachelor) {
+    this.sex = "male"
+}
+
+bach1 := Bachelor{
+    Student{
+        name: "LiMing",
+        number: 1001,
+        age: 20,
+    },
+    "female"
+}
+
+var bach2 Bachelor
+bach2.sex = "male"
+bach2.name = "LiHua"
+bach2.number = 10086
+
+bach1.SetSex
+```
