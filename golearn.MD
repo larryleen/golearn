@@ -85,6 +85,7 @@ fmt.Println("%T", d)
 ```
 
 ### const与iota
+可用于const下的递增枚举
 ```
 const (
     a = iota    //0
@@ -94,4 +95,172 @@ const (
 )
 ```
 
-### 
+### 多返回值三种写法
+```
+//方法一：匿名
+func test1(a string, b int) (int, int) {
+    c := 100
+    d := 200
+    return c, d
+}
+
+//方法二：非匿名
+func test2(a string, b int) (r1 int, r2 int) {
+    r1 = 100
+    r2 = 200
+    return
+}
+
+//方法三： 
+func test3(a string, b int) (r1, r2 int){
+    r1 = 100
+    r2 = 200
+    return
+}
+```
+
+### 导包路径和init方法调用
+1. 执行顺序
+    1. import pkg1(递归解析)
+    2. const ...
+    3. var ...
+    4. init() ...
+    5. main() ...
+    6. Exit
+
+2. 示例多包结构
+\$GOPATH/GolangStudy/5-init/
+* lib1
+    * lib1.go
+* lib2
+    * lib2.go
+* main.go
+```
+//lib1.go
+package lib1
+import "fmt"
+
+func Lib1Test() {
+    fmt.Println("lib1Test")
+}
+
+func init() {
+    fmt.Println("lib1 init")
+}
+```
+
+```
+//lib2.go
+package lib2
+import "fmt"
+
+func Lib2Test() {
+    fmt.Println("lib2Test")
+}
+
+func init() {
+    fmt.Println("lib2 init")
+}
+```
+
+```
+package main
+import (
+    // 未使用module管理前导入相对路径
+    "GolangStudy/5-init/lib1"
+    "GolangStudy/5-init/lib2"
+)
+
+func main() {
+    lib1.Lib1Test()
+    lib2.Lib2Test()
+}
+```
+
+执行结果：先init后Test
+
+### import匿名与别名导包
+不使用lib1函数但是想执行内部init方法：匿名导包
+```
+package main
+import (
+    // 未使用module管理前导入相对路径
+    _ "GolangStudy/5-init/lib1" //匿名
+    mylib2 "GolangStudy/5-init/lib2"  //别名
+    //. "GolangStudy/5-init/lib2" -> lib2Test() 直接导入（不安全）
+)
+
+func main() {
+    mylib2.Lib2Test()
+}
+```
+
+### golang指针
+```
+func swap(pa *int, pb *int){
+    var temp int
+    temp = *pa
+    *pa = *pb
+    *pb = temp
+}
+
+// main
+a := 10
+b := 20
+swap(&a, &b)
+```
+
+### defer语句调用顺序
+defer语句在**生命周期结束**前调用，后进先出。
+```
+func deferfuc() int {
+    fmt.Println("defer func called")
+    return 0
+}
+
+func returnfuc() int {
+    fmt.Println("return func called")
+    return 0
+}
+
+func returnAndDefer() int {
+    defer deferfuc()
+    return returnfuc()
+}
+
+func main() {
+    returnAndDefer()
+}
+
+输出内容：
+defer func called
+return func called
+```
+
+### 数组
+1. 定义数组
+```
+//方法一：指定长度
+var a [5]int
+
+//方法二：根据元素个数推断长度
+b := [3]int{1, 2, 3}
+
+//遍历
+for i := 0; i < len(b); i++ {
+    fmt.Println(b[i])
+}
+
+for index, value := range b {
+    fmt.Println(index, value)
+}
+
+//传参时必须传递完整（值传递）
+func printA(a [5]int) {
+    fmt.Println(a)
+}
+```
+2. 定义slice
+
+
+
