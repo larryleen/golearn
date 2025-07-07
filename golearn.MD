@@ -331,6 +331,17 @@ delete(Mymap1, "YunNan")
 
 //map被调用传参时是直接指针传递
 ```
+### make和new的区别
+make 和 new 都是用于内存分配的内置函数，但它们有着不同的用途和行为：
+1. 适用类型
+    * make：仅适用于创建 slice、map 和 channel 这三种引用类型。
+    * new：用于为任何类型分配零值内存空间，返回指向该类型零值的指针。它适用于所有类型，包括结构体、基本类型（如 int、float 等）以及指针类型等。
+2. 返回值
+    * make：返回的是类型本身，而不是指向类型的指针。例如，make([]int, 5) 返回的是一个 int 类型的切片 []int，make(map[string]int) 返回一个 map[string]int 类型的 map，make(chan int) 返回一个 chan int 类型的通道。
+    * new：返回一个指向已分配内存的指针。例如，new(int) 返回一个指向 int 类型零值（即 0）的指针 *int，new(struct { a int; b string }) 返回一个指向该结构体零值（a 为 0，b 为空字符串）的指针 *struct { a int; b string }。
+3. 内存初始化
+    * make：不仅分配内存，还会对创建的 slice、map 或 channel 进行初始化。
+    * new：只是分配内存并将内存清零，即填充为类型的零值。例如，p := new(int)，此时 *p 的值为 0，但如果是自定义结构体 type MyStruct struct { a int; b string }，p := new(MyStruct)，则 p.a 为 0，p.b 为空字符串，并没有对结构体内部进行额外的初始化操作。
 
 ### struct
 1. 定义struct
@@ -354,6 +365,153 @@ student1.age = 20
 
 ChangeName(&student1, "LiMing")
 ```
+
+2. 匿名struct
+```
+point := struct {
+    x, y int
+}{
+    x: 10,
+    y: 20,
+}
+
+//还允许匿名字段
+type Person struct {
+    string
+    int
+}
+
+func main() {
+    p1 := Person{"LiMing", 20}
+    fmt.Println(p1)
+}
+```
+
+### 深浅拷贝
+```
+type Person struct {
+    Name string
+    Age  int
+    Friends []string  // 切片是引用类型
+}
+
+// 浅拷贝
+p1 := Person{Name: "Alice", Age: 30, Friends: []string{"Bob"}}
+p2 := p1  // p2和p1共享Friends切片
+
+// 深拷贝
+p3 := Person{
+    Name: p1.Name,
+    Age: p1.Age,
+    Friends: make([]string, len(p1.Friends)),
+}
+copy(p3.Friends, p1.Friends)
+```
+
+### 空struct的使用
+1. 节省内存
+只关心某个元素是否存在于集合中，而不需要存储关于该元素的任何额外数据时，空结构体非常有用。
+例如，在一个需要判断一组唯一标识符是否存在的场景中，可以使用 map 结合空结构体来实现。
+
+```
+package main
+
+import (
+    "fmt"
+)
+
+func main() {
+    // 使用map和空结构体来表示集合
+    uniqueIDs := make(map[string]struct{})
+    id1 := "123"
+    id2 := "456"
+
+    // 将ID添加到集合中
+    uniqueIDs[id1] = struct{}{}
+    uniqueIDs[id2] = struct{}{}
+
+    // 检查ID是否存在
+    if _, exists := uniqueIDs["123"]; exists {
+        fmt.Println("ID 123 exists in the set.")
+    }
+}
+```
+
+2. 信号传递
+在通过channel进行通信时，空结构体可以作为简单的信号来传递，用于通知某个事件的发生，而不需要传递任何具体的数据。例如，在一个并发程序中，一个 goroutine 完成任务后向另一个 goroutine 发送信号。
+```
+package main
+
+import (
+    "fmt"
+    "time"
+)
+
+func worker(done chan struct{}) {
+    // 模拟工作
+    time.Sleep(2 * time.Second)
+    fmt.Println("Worker finished")
+    // 发送完成信号
+    done <- struct{}{}
+}
+
+func main() {
+    done := make(chan struct{})
+    go worker(done)
+
+    // 等待工作完成信号
+    <-done
+    fmt.Println("Main function received done signal")
+}
+```
+
+3. 实现接口
+需要实现某个接口，但该接口的方法不需要访问结构体的任何字段。例如，假设存在一个 Notifier 接口，要求实现 Notify 方法，而该方法不需要任何状态信息。
+```
+package main
+
+import "fmt"
+
+type Notifier interface {
+    Notify()
+}
+
+// 使用空结构体实现Notifier接口
+type EmptyNotifier struct{}
+
+func (e EmptyNotifier) Notify() {
+    fmt.Println("Notification sent.")
+}
+
+func main() {
+    var n Notifier = EmptyNotifier{}
+    n.Notify()
+}
+```
+### 结构体指针的使用
+1. 避免空指针
+```
+var p *Person
+// p.Name = "张三"  // 错误：panic: runtime error: invalid memory address or nil pointer dereference
+```
+2. 指针数组
+```
+persons := []*Person{
+    &Person{Name: "张三"},
+    &Person{Name: "李四"},
+}
+for _, p := range persons {
+    fmt.Println(p.Name)
+}
+```
+3. 结构体指针比较
+```
+p1 := &Person{Name: "张三"}
+p2 := &Person{Name: "张三"}
+fmt.Println(p1 == p2)      // false：比较的是指针地址
+fmt.Println(*p1 == *p2)    // true：比较的是结构体的值
+```
+
 
 ### 面向对象的类与封装
 不分公有私有等继承
@@ -621,7 +779,7 @@ func main() {
 }
 ```
 
-### 
+### JSON编码解码格式化
 ```
 package main
 
@@ -645,6 +803,15 @@ func main() {
     }
 
     fmt.Println("jsonStr = %s\n", jsonStr)
+
+    //格式化JSON输出，将Movie结构体转换为格式化的JSON格式的字节切片
+    jsonData, err1 := json.MarshalIndent(movie, "", " ")
+    if err1!= nil {
+        fmt.Println("Error:", err1)
+        return
+    }
+    // 输出格式化的JSON数据
+    fmt.Println(string(jsonData))
 
     //解码过程
     //jsonStr = {"title":"喜剧之王", "year":2000,"rmb":10, "actors":["zhouxingchi, zhangbozhi"]}
@@ -1022,3 +1189,205 @@ require github.com/aceld/zinx v0.0.0-20200221135252-8a8954e75100 // indirect
 
 4. 查看go.sum文件
 在第一次拉取模块依赖后，会发现多出了一个 go.sum 文件，其详细罗列了当前项目直接或间接依赖的所有模块版本，并写明了那些模块版本的 SHA-256 哈希值以备 Go 在今后的操作中保证项目所依赖的那些模块版本不会被篡改。
+
+### 改变模块依赖关系
+```
+go mod edit -replace github.com/aceld/zinx=github.com/aceld/zinx@v0.0.0-20200221135252-8a8954e75100
+```
+
+## Go命令行工具
+### 常用命令
+* go build：编译Go程序
+* go run：编译并运行Go程序
+* go fmt：格式化Go代码
+* go test：运行测试
+* go install：编译并安装Go程序
+* go get：下载并安装Go包
+* go mod：管理Go模块
+* go env：查看Go环境变量
+
+
+## 常用标准库
+### fmt 标准库 - 格式化输入输出
+常用函数
+* fmt.Println(): 打印内容并换行
+* fmt.Printf(): 格式化打印
+* fmt.Sprintf(): 格式化字符串并返回
+* fmt.Scanln(): 从标准输入中读取内容，直到遇到换行符
+* fmt.Scanf(): 从标准输入中读取内容，根据指定的格式进行解析
+* fmt.Fprintln(): 打印内容并换行到指定的输出流
+* fmt.Fprintf(): 格式化打印到指定的输出流
+* fmt.Fscanf(): 从指定的输入流中读取内容，根据指定的格式进行解析
+* fmt.Sprint(): 格式化字符串并返回
+* fmt.Sprintln(): 格式化字符串并换行返回
+
+### time 标准库 - 时间处理
+常用函数与类型
+* time.Now(): 获取当前时间
+* time.Date(): 创建指定时间
+* time.Parse(): 解析时间字符串
+* time.Format(): 格式化时间为字符串
+* time.Sleep(): 休眠指定时间
+
+### 文件操作
+1. 文件打开与关闭
+    * os.Open 函数
+    os.Open 函数用于以只读模式打开一个文件。如果成功打开，它返回一个 *os.File 类型的文件对象和 nil 错误；否则返回 nil 文件对象和相应的错误。
+    ```
+    func main() {
+        file, err := os.Open("test.txt")
+        if err != nil {
+            fmt.Println("无法打开文件:", err)
+            return
+        }
+        defer file.Close()
+        fmt.Println("文件已成功打开")
+    }
+    ```
+
+    * os.OpenFile 函数
+    可以指定打开模式（如只读、只写、读写等）和文件权限。
+    ```
+    func main() {
+        file, err := os.OpenFile("newfile.txt", os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+        if err != nil {
+            fmt.Println("无法打开或创建文件:", err)
+            return
+        }
+        defer file.Close()
+        fmt.Println("文件已成功打开或创建")
+    }
+    ```
+    这里，os.O_WRONLY 表示只写模式，os.O_CREATE 表示如果文件不存在则创建，os.O_TRUNC 表示如果文件存在则截断（清空）。0644 是文件权限，表示所有者有读写权限，组用户和其他用户有读权限。
+
+2. 文件写入
+    * 使用 os.File 的 Write 方法
+    Write 方法接受一个字节切片作为参数，并返回写入的字节数和可能的错误。
+    ```
+    func main() {
+        file, err := os.OpenFile("writefile.txt", os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+        if err != nil {
+            fmt.Println("无法打开或创建文件:", err)
+            return
+        }
+        defer file.Close()
+
+        data := []byte("这是要写入文件的数据")
+        n, err := file.Write(data)
+        if err != nil {
+            fmt.Println("写入文件时出错:", err)
+            return
+        }
+        fmt.Printf("成功写入 %d 个字节\n", n)
+    }
+    ```
+
+    * 使用 os.File 的 WriteString 方法
+    WriteString 方法可以直接写入字符串，而无需先将字符串转换为字节切片。
+    ```
+    func main() {
+        file, err := os.OpenFile("writestringfile.txt", os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+        if err != nil {
+            fmt.Println("无法打开或创建文件:", err)
+            return
+        }
+        defer file.Close()
+
+        str := "使用 WriteString 写入的字符串"
+        n, err := file.WriteString(str)
+        if err != nil {
+            fmt.Println("写入文件时出错:", err)
+            return
+        }
+        fmt.Printf("成功写入 %d 个字节\n", n)
+    }
+    ```
+
+3. 文件读取
+    * 使用 os.File 的 Read 方法
+    Read 方法接受一个字节切片作为参数，并返回读取的字节数和可能的错误。当到达文件末尾时，返回 0, io.EOF。
+    ```
+    func main() {
+        file, err := os.Open("readfile.txt")
+        if err != nil {
+            fmt.Println("无法打开文件:", err)
+            return
+        }
+        defer file.Close()
+
+        data := make([]byte, 100)
+        n, err := file.Read(data)
+        if err != nil {
+            fmt.Println("读取文件时出错:", err)
+            return
+        }
+        fmt.Printf("成功读取 %d 个字节\n", n)
+    }
+    ```
+
+    * 使用 os.File 的 ReadString 方法（结合 bufio）
+    虽然 os.File 本身没有 ReadString 方法，但结合 bufio 包可以实现按字符串读取。
+    ```
+    func main() {
+        file, err := os.Open("test.txt")
+        if err != nil {
+            fmt.Println("无法打开文件:", err)
+            return
+        }
+        defer file.Close()
+
+        scanner := bufio.NewScanner(file)
+        for scanner.Scan() {
+            line := scanner.Text()
+            fmt.Println("读取到的行:", line)
+        }
+        if err := scanner.Err(); err != nil {
+            fmt.Println("读取文件时出错:", err)
+        }
+    }
+    ```
+
+4. 文件拷贝
+文件拷贝可以通过循环读取源文件并写入目标文件来实现。
+```
+func copyFile(src, dst string) error {
+    srcFile, err := os.Open(src)
+    if err != nil {
+        return err
+    }
+    defer srcFile.Close()
+
+    dstFile, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE, 0644)
+    if err != nil {
+        return err
+    }
+    defer dstFile.Close()
+
+    buf := make([]byte, 1024)
+    for {
+        n, err := srcFile.Read(buf)
+        if err != nil && err.Error() != "EOF" {
+            return err
+        }
+        if n == 0 {
+            break
+        }
+        _, err = dstFile.Write(buf[:n])
+        if err != nil {
+            return err
+        }
+    }
+    return nil
+}
+
+func main() {
+    err := copyFile("source.txt", "destination.txt")
+    if err != nil {
+        fmt.Println("文件拷贝出错:", err)
+    } else {
+        fmt.Println("文件拷贝成功")
+    }
+}
+```
+
+
