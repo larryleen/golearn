@@ -1390,4 +1390,296 @@ func main() {
 }
 ```
 
+### bufio
+1. 写入操作
+使用bufio.Writer。
+bufio.Writer 提供了带缓冲的写入功能。它会在缓冲区满或调用 Flush 方法时，将数据写入底层的 io.Writer（如 os.File）。
+```
+func main() {
+    file, err := os.Openfile("bufwritefile.txt", os.WRONLY|os.O_REATE|0644)
+    if err != nil {
+        fmt.Println("无法打开或创建文件:", err)
+        return
+    }
+
+    defer file.Close()
+
+    writer := bufio.NewWriter(file)
+    data := []byte("要写入的数据")
+    _, err = writer.Write(data)
+    if err != nil {
+        fmt.Println("写入文件时出错:", err)
+        return
+    }
+
+    err = writer.Flush()
+    if err != nil {
+        fmt.Println("刷新缓冲区时出错:", err)
+        return
+    }
+    fmt.Println("数据写入成功")
+}
+```
+
+2. 读取操作
+使用 bufio.Reader。
+bufio.Reader 提供了带缓冲的读取功能。它可以按字节、按行或按指定分隔符读取数据。
+```
+//按字节读取
+
+func main() {
+    file, err := os.Open("bufwritefile.txt")
+    if err != nil {
+        fmt.Println("无法打开文件:", err)
+        return
+    }
+    defer file.Close()
+
+    reader := bufio.NewReader(file)
+    buf := make([]byte, 5)
+    _, err = reader.Read(buf)
+    if err != nil {
+        fmt.Println("读取时出错：", err)
+        return
+    }
+    fmt.Println("读取到的字节：", buf)
+}
+
+//按行读取
+func main() {
+    file, err := os.Open("bufwritefile.txt")
+    if err != nil {
+        fmt.Println("无法打开文件:", err)
+        return
+    }
+    defer file.Close()
+
+    reader := bufio.NewReader(file)
+    for {
+        line, err := reader.ReadString('\n')
+        if err != nil {
+            break
+        }
+        fmt.Println(line)
+    }
+}
+```
+
+### 文件操作工具包
+1. 使用 os.ReadFile 和 os.WriteFile
+```
+//os.ReadFile 函数可以一次性读取整个文件的内容：
+func main() {
+    // 读取整个文件
+    content, err := os.ReadFile("test.txt")
+    if err != nil {
+        fmt.Println("读取文件失败:", err)
+        return
+    }
+
+    // 将读取的内容转换为字符串并打印
+    fmt.Println("文件内容:", string(content))
+}
+
+//os.WriteFile 函数可以一次性将数据写入文件：
+func main() {
+    data := []byte("要写入的数据")
+    content, err := os.WriteFile("output.txt", data, 0644)
+    if err != nil {
+        fmt.Println("写入文件失败:", err)
+        return
+    }
+
+    fmt.Println("文件写入成功")
+}
+```
+
+### 读取目录内容
+使用os.ReadDir读取目录内容
+```
+func main() {
+    files, err := os.ReadDir(".)
+    entries, err := os.ReadDir(".")
+    if err != nil {
+        fmt.Println("读取目录失败:", err)
+        return
+    }
+
+    for _, entry := range entries {
+        info, err := entry.Info()
+        if err != nil {
+            fmt.Println("获取文件信息失败:", err)
+            continue
+        }
+        fmt.Println(info.Name(), info.Size(), info.IsDir())
+    }
+}
+```
+
+### 创建临时文件和目录
+使用 os.CreateTemp 和 os.MkdirTemp 可以创建临时文件和目录。
+```
+func main() {
+    // 创建临时文件
+    tempFile, err := os.CreateTemp("", "example-*.txt")
+    if err != nil {
+        fmt.Println("创建临时文件失败:", err)
+        return
+    }
+    defer os.Remove(tempFile.Name()) // 创建后记得删除
+    defer tempFile.Close()
+
+    // 创建临时目录
+    tempDir, err := os.MkdirTemp("", "example")
+    if err != nil {
+        fmt.Println("创建临时目录失败:", err)
+        return
+    }
+    defer os.Remove(tempDir) // 创建后记得删除
+
+    fmt.Println("临时目录创建成功:", tempDir)
+}
+```
+
+### 读取数据流
+使用 io.ReadAll 读取任何实现了 io.Reader 接口的数据源
+```
+func main() {
+    reader := strings.NewReader("这是要读取的数据")
+
+    data, err := io.ReadAll(reader)
+    if err != nil {
+        fmt.Println("读取数据失败:", err)
+        return
+    }
+    fmt.Println("读取到的数据:", string(data))
+}
+```
+
+### 文件操作错误情况
+1. 文件不存在
+```
+_, err := os.Open("不存在的文件.txt")
+if os.IsNotExist(err) {
+    fmt.Println("文件不存在")
+}
+```
+2. 权限不足
+```
+_, err := os.OpenFile("/root/test.txt", os.O_RDWR, 0666)
+if os.IsPermission(err) {
+    fmt.Println("权限不足")
+}
+```
+3. 文件已存在
+```
+_, err := os.OpenFile("test.txt", os.O_CREATE|os.O_EXCL, 0666)
+if os.IsExist(err) {
+    fmt.Println("文件已存在")
+}
+```
+
+4. 路径错误
+```
+_, err := os.Open("/不存在的目录/test.txt")
+if err != nil {
+    fmt.Println("路径错误:", err)
+}
+```
+
+### 文件操作错误处理
+1. 错误检查函数
+可以搭配switch case使用
+```
+func main() {
+    _, err := os.Open("test.txt")
+
+    switch {
+    case os.IsNotExist(err):
+        fmt.Println("文件不存在")
+    case os.IsPermission(err):
+        fmt.Println("权限不足")
+    case err != nil:
+        fmt.Println("其他错误:", err)
+    default:
+        fmt.Println("文件操作成功")
+    }
+}
+```
+
+2. 自定义错误类型
+```
+type FileError struct {
+    Op   string // 操作类型
+    Path string // 文件路径
+    Err  error  // 原始错误
+}
+
+func (e *FileError) Error() string {
+    return fmt.Sprintf("操作 %s 文件 %s 失败: %v", e.Op, e.Path, e.Err)
+}
+
+func ReadConfig(path string) error {
+    file, err := os.Open(path)
+    if err != nil {
+        return &FileError{
+            Op:   "读取配置",
+            Path: path,
+            Err:  err,
+        }
+    }
+    defer file.Close()
+    return nil
+}
+```
+
+3. 错误包装与解包
+使用 fmt.Errorf 和 %w 动词包装错误，保留错误链：
+```
+func readFileContent(path string) error {
+    file, err := os.Open(path)
+    if err != nil {
+        return fmt.Errorf("打开文件失败: %w", err)
+    }
+    defer file.Close()
+
+    data := make([]byte, 100)
+    _, err = file.Read(data)
+    if err != nil {
+        return fmt.Errorf("读取文件内容失败: %w", err)
+    }
+    return nil
+}
+
+func main() {
+    err := readFileContent("不存在的文件.txt")
+    if err != nil {
+        // 解包错误
+        var pathError *os.PathError
+        if errors.As(err, &pathError) {
+            fmt.Printf("路径错误: %v\n", pathError.Path)
+        }
+        fmt.Println(err)
+    }
+}
+```
+
+4. 使用 defer 确保资源释放
+```
+func processFile(filename string) error {
+    file, err := os.Open(filename)
+    if err != nil {
+        return fmt.Errorf("打开文件失败: %w", err)
+    }
+    // 立即使用 defer 确保文件关闭
+    defer func() {
+        if err := file.Close(); err != nil {
+            fmt.Printf("关闭文件失败: %v\n", err)
+        }
+    }()
+
+    // 处理文件...
+    return nil
+}
+```
 
