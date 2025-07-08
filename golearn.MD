@@ -1683,3 +1683,138 @@ func processFile(filename string) error {
 }
 ```
 
+## 异常机制panic和recover
+Go 语言通过defer、panic和recover三个关键字构建了一种独特的异常处理机制。
+### Defer语句
+包含该defer语句的函数返回时才执行。在资源释放、日志记录等场景中尤为有用。LIFO顺序调用
+
+应用场景
+1. 关闭文件
+```
+func ReadFile(filename string) error {
+    file, err := os.Open(filename)
+    if err != nil {
+        return err
+    }
+    defer file.Close()
+
+    //文件操作...
+    return nil
+}
+```
+
+2. 关闭数据库连接
+```
+func queryDB() error {
+    db, err := sql.Open("mysql", "user:password@tcp(127.0.0.1:3300)/dbname")
+    if err != nil {
+        return err
+    }
+    defer db.Close()
+
+    //数据库操作...
+    return nil
+}
+```
+
+注意事项
+1. defer 的参数在 defer 语句执行时求值，而不是在实际执行时求值。
+```
+func main() {
+    i := 0
+    defer fmt.Println("deferred value:", i) // 会打印0，而不是1
+    i++
+    fmt.Println("current value:", i)
+}
+```
+2. defer 在循环中的使用
+```
+//output:0 1 2
+func wrong() {
+    for i := 0; i < 3; i++ {
+        defer fmt.Println(i) // 不推荐在循环中直接使用defer
+    }
+}
+
+//output:2 1 0
+func right() {
+    for i := 0; i < 3; i++ {
+        i := i // 创建新的变量
+        defer func() {
+            fmt.Println(i)
+        }()
+    }
+}
+```
+
+### Panic语句
+用于触发一个运行时错误，立即停止当前函数的执行，并开始回溯调用栈。panic主要用于处理真正的**异常情况**，而不是普通的**错误**。
+```
+func main() {
+    f()
+}
+
+func f() {
+    panic("发生了一个panic")
+}
+```
+
+使用场景
+1. 初始化失败
+可能系统无法启动，需要使用panic来立即停止程序。
+```
+func initConfig() {
+    config, err != nil {
+        panic("无法加载配置文件，系统无法启动")
+    }
+}
+```
+
+2. 不可恢复的错误
+```
+import "net/http"
+func startServer(port string) {
+    if err := http.ListenAndServe(port, nil); err != nil {
+        panic(fmt.Sprintf("服务器启动失败：%v", err))
+    }
+}
+```
+
+最佳实践
+1. 区分错误和异常
+```
+func processData(data []int) error {
+    if len(data) == 0 {
+        return errors.New("空数据") //普通错误
+    }
+
+    if data == nil {
+        panic("空指针异常") //真正的异常情况
+    }
+
+    return nil
+}
+```
+
+2. 自定义panic信息
+```
+type CustomError struct {
+    Code    int
+    Message string
+}
+
+func (e *CustomError) Error() string {
+    return fmt.Sprintf("错误码: %d, 信息: %s", e.Code, e.Message)
+}
+
+func process() {
+    panic(&CustomError{
+        Code:    500,
+        Message: "严重错误",
+    })
+}
+
+### Recover函数
+用于捕获和处理 panic，从而阻止 panic 继续传播，使程序可以继续正常执行。**只能在 defer 函数中使用**。
+
+
