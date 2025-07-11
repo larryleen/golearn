@@ -1934,7 +1934,7 @@ func convertPanicToError() {
 * 即使成功 recover，当前函数也会提前返回，不会继续执行 panic 点之后的代码
 
 
-## 网络编程
+## HTTP协议
 ### 状态码
 * 1xx: 信息型状态码，请求已接收，继续处理
 * 2xx: 成功状态码，请求已成功处理
@@ -1991,11 +1991,9 @@ func convertPanicToError() {
 **Cookie** 是服务器发送到用户浏览器并保存在本地的一小块数据，它会在浏览器下次向同一服务器再发起请求时被携带并发送到服务器上。
 * **客户端存储**：Cookie 存储在用户的浏览器中，而不是服务器上
 * **容量限制**：单个 Cookie 的大小通常不超过 4KB
-
 * **数量限制**：每个域名下的 Cookie 数量有限制（通常为 20-50 个）
 * **有效期**：可以设置过期时间，也可以是会话期 Cookie（关闭浏览器即失效）
 * **域名限制**：只能被特定域名的页面访问
-
 **常用属性**
 * **name/value**：Cookie 的名称和值
 * **domain**：指定 Cookie 对于哪个域是有效的
@@ -2004,6 +2002,103 @@ func convertPanicToError() {
 * **secure**：只在 HTTPS 连接中传输 Cookie
 * **httpOnly**：防止 JavaScript 访问 Cookie，只能通过 HTTP 请求携带
 * **sameSite**：控制 Cookie 在跨站请求时是否被发送
+**设置与获取Cookie**
+服务端通过设置响应头 *Set-Cookie* 来创建 Cookie：
+```
+HTTP/1.1 200 OK
+Content-Type: text/html
+Set-Cookie: username=张三; expires=Wed, 21 Oct 2023 07:28:00 GMT; path=/; domain=example.com
+Set-Cookie: sessionId=abc123; HttpOnly; Secure
+```
+浏览器发送请求时会自动在请求头中携带 Cookie：
+```
+GET /index.html HTTP/1.1
+Host: www.example.com
+Cookie: username=张三; sessionId=abc123
+```
+**应用场景**
+1. **用户认证**：存储登录状态和用户标识
+2. **个性化设置**：保存用户偏好，如网站主题、字体大小等
+3. **追踪与分析**：记录用户行为，如购物车、浏览历史等
+4. **广告定向投放**：基于用户兴趣的广告推送
 
+**Session**
+Session 是在服务端保持的一个状态，用来跟踪用户状态的机制，可以理解为服务器端的"会话"。
+**工作原理**
+1. 用户首次访问服务器时，服务器创建一个 Session 并生成一个唯一的 Session ID
+2. 服务器将 Session ID 通过 Cookie 发送给浏览器
+3. 浏览器后续的请求会携带这个 Session ID
+4. 服务器通过 Session ID 识别用户并检索对应的 Session 数据
 
+**实现方式**
+```
+// Go语言的简单Session实现示例
+func handleLogin(w http.ResponseWriter, r *http.Request) {
+	// 验证用户身份
+	username := r.FormValue("username")
+	password := r.FormValue("password")
 
+	if authenticateUser(username, password) {
+		// 创建Session
+		sessionID := generateSessionID()
+		sessions[sessionID] = &Session{
+			UserID:   getUserID(username),
+			Username: username,
+			Created:  time.Now(),
+		}
+
+		// 设置Cookie
+		cookie := &http.Cookie{
+			Name:     "sessionid",
+			Value:    sessionID,
+			Path:     "/",
+			HttpOnly: true,
+			MaxAge:   3600, // 1小时
+		}
+		http.SetCookie(w, cookie)
+
+		// 重定向到用户页面
+		http.Redirect(w, r, "/user", http.StatusFound)
+	} else {
+		http.Error(w, "Invalid credentials", http.StatusUnauthorized)
+	}
+}
+```
+
+### Cookie 与 Session 的区别
+| 特性 | Cookie| Session |
+| --- | --- | --- |
+| 存储位置 | 客户端（浏览器） | 服务端 |
+| 安全性 | 较低，可被客户端查看和修改 | 较高，数据存储在服务器 |
+| 存储容量 | 有限制（通常 4KB 以内） | 理论上无限制 |
+| 生命周期 | 可长期保存 | 通常随会话结束而清除 |
+| 对服务器负担 | 较小 | 较大 |
+| 跨域支持 | 有限制 | 默认不支持跨域 |
+
+### 最佳实践
+1. **使用 HttpOnly 标志**：防止 JavaScript 访问 Cookie，减少 XSS 攻击风险
+2. **使用 Secure 标志**：确保 Cookie 只通过 HTTPS 传输
+3. **设置合理的过期时间**：减少 Cookie 被盗用的风险
+4. **加密敏感数据**：不在 Cookie 中存储明文的敏感信息
+5. **使用 SameSite 属性**：防止 CSRF 攻击
+6. **定期更新 Session ID**：尤其是在用户权限变更后
+
+## net/http包
+```
+package main
+
+import (
+    "fmt"
+    "net/http"
+)
+
+func main() {
+    http.HandleFunc("/hello", func(w http.ResponseWriter, r* http.Request) {
+        fmt.Fprintf(w, "你好， Gopher！")
+    })
+
+    http.ListenAndServe(":8080", nil)
+}
+```
+
+11
