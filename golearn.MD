@@ -692,6 +692,7 @@ import{
     "reflect"
 }
 
+//可以从接口值中获取类型信息和值信息
 func reflectNum(arg interface{}) {
     fmt.Println("type: ", reflect.TypeOf(arg))
     fmt.Println("value: ", reflect.ValueOf(arg))
@@ -902,6 +903,14 @@ func main() {
 
 ### channel通信机制
 无缓冲和有缓冲channel都具有同步能力（双方都可能阻塞）
+1. 无缓冲channel
+    1. 确保通信双方严格同步
+    2. 防止数据丢失或重复处理
+    3. 实现精确的 goroutine 间协调
+2. 有缓冲channel
+    1. 提高系统吞吐量
+    2. 缓解生产者和消费者速度不匹配的问题
+    3. 减少 goroutine 阻塞时间
 ```
 package main
 import "fmt"
@@ -962,6 +971,67 @@ func main() {
 2. 向关闭后的channel发送数据会引发panic
 3. 可以从关闭后的channel接收数据
 4. 对于nil channel，收发都会阻塞
+
+### 单双向Channel
+```
+func main() {
+    ch1 := make(chan int) //双向
+    go func() {
+        defer ch1.Close()
+        for i := 0; i < 5; i++ {
+            ch1 <- i
+        }
+    }()
+
+    for i := range ch1 {
+        fmt.Println(i)
+    }
+}
+```
+
+```
+//单向channel
+//单向 channel 限制了数据的流动方向，要么只能发送数据（chan<-），要么只能接收数据（<-chan）。这在函数参数传递时非常有用，可以明确限制 channel 的使用方式，增强代码的可读性和安全性。
+func sender(ch chan<- int) {
+    defer close(ch)
+    for i := 0; i < 5; i++ {
+        ch <- i
+    }
+}
+
+func main() {
+    ch := make(chan int)
+    go sender(ch)
+
+    for num := range ch {
+        fmt.Println(num)
+    }
+}
+```
+### Channel常见使用模式
+1. 信号通知
+```
+func worker(done chan bool) {
+    time.Sleep(time.Second)
+    down <- true
+}
+
+func main() {
+    down := make(chan bool)
+    go worker(down)
+    <-down // 等待工作完成
+}
+```
+
+2. 超时控制
+```
+select {
+    case reslut := <-ch:
+        fmt.Println("收到结果：", result)
+    case <-time.After(2 * time.Second):
+        fmt.Println("超时")
+}
+```
 
 ### channel和range
 ```
@@ -1036,6 +1106,13 @@ func main() {
     fibonacii(c, quit)
 }
 ```
+
+### sync.WaitGroup
+sync.WaitGroup用于等待一组goroutine完成，主go程阻塞，直到所有子go程执行完毕。
+* Add(delta int)：增加 WaitGroup 的计数器
+* Done()：减少 WaitGroup 的计数器
+* Wait()：等待 WaitGroup 的计数器为 0。只要计数器不为 0，Wait 方法会阻塞。
+
 
 ### Go Modules
 是Go语言的依赖解决方案，发布于Go 1.11，于Go1.14推荐在生产上使用。为了淘汰GOPATH
@@ -1813,8 +1890,120 @@ func process() {
         Message: "严重错误",
     })
 }
+```
 
 ### Recover函数
+1. 基本作用
 用于捕获和处理 panic，从而阻止 panic 继续传播，使程序可以继续正常执行。**只能在 defer 函数中使用**。
+```
+func handlePanic() {
+    defer func() {
+        if r := recover(); r != nil {
+            fmt.Printf("Recovered from: %v\n", r)
+        }
+    }()
+    panic("发生异常")
+}
+```
+
+2. 高级应用
+```
+func convertPanicToError() {
+    defer func() {
+        if r:= recover(); r != nil {
+            switch x := r.(type) {
+                case string:
+                    err = errors.New(x)
+                case error:
+                    err = x
+                default:
+                    err = errors.New("未知错误：%v", x)
+            }
+            log.Printf("从panic中恢复：%v", err)
+        }
+    }()
+
+    panic("一些错误")
+    return nil
+} 
+```
+当 panic 发生时：
+* 当前函数立即停止正常执行
+* defer 函数会被执行
+* 在 defer 函数中使用 recover 可以捕获 panic 信息
+* 即使成功 recover，当前函数也会提前返回，不会继续执行 panic 点之后的代码
+
+
+## 网络编程
+### 状态码
+* 1xx: 信息型状态码，请求已接收，继续处理
+* 2xx: 成功状态码，请求已成功处理
+* 3xx: 重定向状态码，需要进一步操作以完成请求
+* 4xx: 客户端错误状态码，请求包含错误或无法完成
+* 5xx: 服务器错误状态码，服务器在处理请求时发生错误
+
+### 常见状态码
+* 200 OK：请求成功
+* 400 Bad Request：请求错误
+* 404 Not Found：资源不存在
+* 500 Internal Server Error：服务器内部错误
+
+### Http缓存
+作用：通过减少服务器请求次数加快页面加载速度。
+基于Http协议头部信息控制数据存储验证，分为两种类型：**强制缓存**和**协商缓存**
+
+* 强制缓存：
+    * Expires：HTTP/1.0 使用，指定缓存过期时间
+    * Cache-Control：HTTP/1.1使用，指定缓存过期时间，提供更多控制选项。
+* 协商缓存：
+    * Last-Modified：资源上次修改时间
+    * ETag：资源唯一标识
+* 工作流程
+    1. 浏览器发起请求，携带上次响应中的某些特殊头部信息。
+    2. 服务器根据这些信息判断资源是否有变化。
+    3. 如果资源没有变化，返回 304 状态码，不返回资源内容。
+    4. 如果资源有变化，返回 200 状态码和完整的资源内容。
+
+### 与协商缓存相关的 HTTP 头部
+**Last-Modified/If-Modified-Since**
+对头部基于资源的最后修改时间进行协商：
+* **Last-Modified**：服务器在响应中添加，表示资源的最后修改时间
+* **If-Modified-Since**：客户端在后续请求中携带，值为上次收到的 Last-Modified 值
+
+**ETag/If-None-Match**
+对头部基于资源内容的唯一标识符进行协商：
+* **ETag**：服务器在响应中添加，表示资源的唯一标识符（通常为哈希值）
+* **If-None-Match**：客户端在后续请求中携带，值为上次收到的 ETag 值
+
+| 特性 | Last-Modified | ETag |
+| --- | --- | --- |
+| 精确度 | 秒级，无法识别 1 秒内多次修改 | 基于内容，可以精确识别任何变化 |
+| 性能开销 | 较小，只需记录时间 | 较大，需要计算内容哈希值 |
+| 应对场景 | 适合内容变化较慢的资源 | 适合内容频繁变化或需要精确控制缓存的资源 |
+| 应对特殊情况 | 无法处理资源周期性变化但内容不变的情况 | 可以应对时间变化但内容不变的情况 |
+
+### 应用建议
+1. 对于不经常变化的静态资源（如 logo、库文件等），使用强制缓存。前端资源一般带 hash，hash 是根据内容生成的，内容不变，hash 不变。
+2. 对于可能变化的资源（如 HTML、API 数据等），使用协商缓存。
+3. 对于 ETag 和 Last-Modified，优先使用 **ETag**，因为它更精确。
+
+### Cookie 与 Session
+**Cookie** 是服务器发送到用户浏览器并保存在本地的一小块数据，它会在浏览器下次向同一服务器再发起请求时被携带并发送到服务器上。
+* **客户端存储**：Cookie 存储在用户的浏览器中，而不是服务器上
+* **容量限制**：单个 Cookie 的大小通常不超过 4KB
+
+* **数量限制**：每个域名下的 Cookie 数量有限制（通常为 20-50 个）
+* **有效期**：可以设置过期时间，也可以是会话期 Cookie（关闭浏览器即失效）
+* **域名限制**：只能被特定域名的页面访问
+
+**常用属性**
+* **name/value**：Cookie 的名称和值
+* **domain**：指定 Cookie 对于哪个域是有效的
+* **path**：指定 Cookie 在哪个路径下有效
+* **expires/max-age**：设置 Cookie 的过期时间
+* **secure**：只在 HTTPS 连接中传输 Cookie
+* **httpOnly**：防止 JavaScript 访问 Cookie，只能通过 HTTP 请求携带
+* **sameSite**：控制 Cookie 在跨站请求时是否被发送
+
 
 
