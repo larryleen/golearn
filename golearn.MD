@@ -1760,6 +1760,108 @@ func processFile(filename string) error {
 }
 ```
 
+### Time库
+#### 主要类型
+* Time：表示时间点
+    * 包含sec和nsec两个方法，表示秒数和纳秒数
+    * time.Time{}，表示时间点的零值，即1年1月1日00:00:00 UTC。
+
+* Duration：表示时间间隔
+* Location：表示时区
+* Timer：单次定时器
+* Ticker：周期定时器
+
+#### 常见用法
+* 获取当前时间: time.Now()
+* 创建特定时间: time.Date(2023, time.May, 1, 12, 0, 0, 0, time.UTC)
+* 解析时间字符串: time.Parse("2006-01-02", "2023-05-01")
+* 标准格式: t.Format(time.RFC3339)
+* 自定义格式: t.Format("2006-01-02 15:04:05")
+* 增加时间: t.Add(24 * time.Hour)
+* 时间差: t1.Sub(t2)
+* 比较时间: t1.Before(t2), t1.After(t2), t1.Equal(t2)
+* 一次性定时器: time.After(5 * time.Second)
+* 周期性定时器: time.Tick(1 * time.Second)
+* 自定义定时器: time.NewTimer(2 * time.Second)
+
+#### 使用场景
+超时控制
+```
+func withTimeOut() {
+    c := make(chan string)
+
+    go func() {
+        time.Sleep(3 * time.Second)
+        c <- "运行结束"
+    }
+
+    select {
+    case res := <-c:
+        fmt.Println(res)
+    case time.After(2 * time.Second):
+        fmt.Println("操作超时")
+    }
+}
+```
+
+周期性任务
+```
+func periodicTask(quit chan struct{}) {
+    ticker := Time.NewTicker(1 * time.Second)
+    defer ticker.Stop()
+
+    for {
+        select {
+        case <-ticker.C:
+            fmt.Println("周期性任务")
+        case <-quit:
+            fmt.Println("任务结束")
+            return
+        }
+    }
+}
+```
+
+### strings库
+* 字符串查询与判断
+* 字符串转换
+* 字符串分割/连接
+* 字符串修剪处理
+* 字符串构建
+
+#### 字符串查询判断
+```
+// 判断是否包含子串
+contains := strings.Contains("Hello world", "world") //true
+
+// 判断是否以某字符串开头/结尾
+hasPrefix := strings.HasPrefix("Hello world", "Hello") //true
+hasSuffix := strings.HasSuffix("Hello world", "world") //true
+
+// 查找子串位置
+index := strings.Index("Hello world", "world") //6
+index := strings.LastIndex("Hello Hello", "Hello") //6
+
+// 计算子串出现次数
+count := strings.Count("cheese", "e") //3
+```
+
+#### 字符串处理
+```
+// 去除首尾空格/指定字符
+trimmed := strings.Trim(" !!! Hello !!! ", " !") // "Hello", cutset是字符集合不是字符串
+trimSpace := strings.TrimSpace("\t\n Hello \n\t\r\n") // "Hello"
+
+// 去除前缀后缀
+trim := strings.TrimPrefix("Hello world", "Hello ") // "world"
+trimSuffix := strings.TrimSuffix("Hello world", " world") // "Hello"
+
+// 字符串比较
+equal := strings.EqulFold("Go", "go") //true（不区分大小写）
+```
+
+
+
 ## 异常机制panic和recover
 Go 语言通过defer、panic和recover三个关键字构建了一种独特的异常处理机制。
 ### Defer语句
